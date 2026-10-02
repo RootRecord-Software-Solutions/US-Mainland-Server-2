@@ -1,0 +1,10 @@
+[Unit]
+Description=US-Mainland-Server-2 git pull --ff-only (GitHub)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/US-Mainland-Server-2
+ExecStart=/home/ubuntu/US-Mainland-Server-2/scripts/aws-git-pull.sh
+User=ubuntu
