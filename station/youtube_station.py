@@ -10,11 +10,14 @@ import signal
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from program import Program
 
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+HAWAII = ZoneInfo("Pacific/Honolulu")
 VIDEO_BITRATE = "800k"
 VIDEO_MAXRATE = "1000k"
 AUDIO_BITRATE = "128k"
@@ -64,15 +67,17 @@ class Station:
 
     def _write_slate(self, title):
         self.state.mkdir(parents=True, exist_ok=True)
-        text = title.replace("\n", " ").strip() or "Standing by"
-        self.slate.write_text(text + "\n", encoding="utf-8")
+        clock = datetime.now(HAWAII).strftime("%H:%M HST")
+        text = (title or "Standing by").replace("\n", " ").strip()
+        body = "\n".join(["ROOTRECORD", text, clock, "rootrecord.cloud"])
+        self.slate.write_text(body + "\n", encoding="utf-8")
 
     def _filters(self):
-        clock = "drawtext=fontfile=%s:text='%%{localtime\\:%%H\\:%%M} HST':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=h/2+56" % FONT
-        title = "drawtext=fontfile=%s:textfile=%s:reload=1:fontsize=36:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2" % (FONT, self.slate)
-        name = "drawtext=fontfile=%s:text='ROOTRECORD':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=h/2-78" % FONT
-        site = "drawtext=fontfile=%s:text='rootrecord.cloud':fontsize=24:fontcolor=white:x=(w-text_w)/2:y=h-72" % FONT
-        return ",".join([name, title, clock, site])
+        return (
+            "drawtext=fontfile=%s:textfile=%s:reload=1:fontsize=42:"
+            "fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2"
+            % (FONT, self.slate)
+        )
 
     def _command(self, dest):
         video = [
@@ -167,6 +172,7 @@ class Station:
                         log("PROGRAM", value=self.program.title)
                     next_log = time.monotonic() + 5
                 if self.mode != "program":
+                    self._write_slate("Station test")
                     time.sleep(0.2)
         finally:
             if self.proc.stdin:
@@ -181,7 +187,10 @@ class Station:
             text = err.decode(errors="replace").strip()
             if text:
                 log("FFMPEG", detail=text[-300:].replace("\n", " "))
-        return self.proc.returncode
+        code = self.proc.returncode
+        if code == 0 and self.max_seconds:
+            self.stopping = True
+        return code
 
     def run(self):
         signal.signal(signal.SIGTERM, self.stop)
