@@ -9,4 +9,4 @@ enable_dvr: true
 record_from_start: true
 resolution: 720p
 frame_rate: 30fps
-page_url: https://www.rootrecord.cloud/live?broadcast=1
+page_url: https://www.rootrecord.cloud/live

@@ -92,7 +92,7 @@ class Station:
     def _command(self, dest):
         if self.visual == "page" and self.capture is not None:
             sources = self.capture.ffmpeg_inputs()
-            filters = []
+            filters = ["-map", "0:v:0", "-map", "1:a:0"]
         else:
             sources = ["-re", "-f", "lavfi", "-i", "color=c=0x0e1a14:s=1280x720:r=15"]
             if self.mode == "program":

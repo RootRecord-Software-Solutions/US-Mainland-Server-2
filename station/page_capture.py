@@ -1,15 +1,15 @@
-"""Capture the public live desk. Chromium is off unless STATION_VISUAL=page.
+"""Capture the public live desk.
 
-Xvfb plus a Pulse null sink is the light capture that can hand the page's
-picture and the radio autoplay to one FFmpeg process. Headless Chrome does
-not expose that audio reliably. This box is a t3.micro, so the path stays
-opt-in and the default encoder remains the generated slate.
+The picture is the page. The sound is the radio MP3 itself, not the browser's
+audio device, so a pause inside Chromium does not cut the broadcast.
 """
 
 import os
 import shutil
 import subprocess
 import time
+
+RADIO = "https://api.rootrecord.cloud/radio/live.mp3"
 
 
 class PageCapture:
@@ -21,7 +21,7 @@ class PageCapture:
         self.procs = []
 
     def available(self):
-        needed = ["Xvfb", "pactl", self._browser()]
+        needed = ["Xvfb", self._browser()]
         return [name for name in needed if name and shutil.which(name) is None]
 
     def _browser(self):
@@ -43,19 +43,12 @@ class PageCapture:
         time.sleep(0.4)
         env = os.environ.copy()
         env["DISPLAY"] = self.display
-        subprocess.run(
-            ["pactl", "load-module", "module-null-sink", f"sink_name={self.sink}"],
-            check=False,
-            env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        env["PULSE_SINK"] = self.sink
         self.procs.append(subprocess.Popen(
             [
                 self._browser(),
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
+                "--mute-audio",
                 "--autoplay-policy=no-user-gesture-required",
                 "--disable-gpu",
                 "--use-gl=swiftshader",
@@ -68,13 +61,15 @@ class PageCapture:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         ))
-        time.sleep(2)
+        time.sleep(8)
 
     def ffmpeg_inputs(self):
         return [
-            "-f", "x11grab", "-video_size", self.size, "-framerate", "15",
+            "-f", "x11grab", "-draw_mouse", "0",
+            "-video_size", self.size, "-framerate", "15",
             "-i", self.display,
-            "-f", "pulse", "-i", f"{self.sink}.monitor",
+            "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "2",
+            "-i", RADIO,
         ]
 
     def stop(self):
@@ -87,9 +82,3 @@ class PageCapture:
             except subprocess.TimeoutExpired:
                 proc.kill()
         self.procs = []
-        subprocess.run(
-            ["pactl", "unload-module", "module-null-sink"],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
