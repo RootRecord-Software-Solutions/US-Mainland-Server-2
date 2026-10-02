@@ -60,7 +60,7 @@ def authorize():
     _request, _creds, InstalledAppFlow = _google()
     flow = InstalledAppFlow.from_client_secrets_file(str(path), [SCOPE])
     creds = flow.run_local_server(
-        host="127.0.0.1",
+        host="localhost",
         port=8765,
         open_browser=False,
         prompt="consent",
