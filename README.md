@@ -26,13 +26,24 @@ This station does not pull files from the other mainland server. Generated WAV, 
 
 ## YouTube
 
-`station/youtube_station.py` decides what is on. FFmpeg draws the slate, encodes H.264/AAC, and sends RTMPS. The unit is installed stopped:
+`station/youtube_station.py` decides what is on. FFmpeg encodes H.264/AAC and sends RTMPS. The picture is a generated slate unless `STATION_VISUAL=page`, which captures `https://www.rootrecord.cloud/live?broadcast=1`. That page is the existing live desk. The `broadcast=1` query is what starts the radio autoplay. The public `/live` page does not.
+
+Page capture uses Xvfb, a Pulse null sink, and Chromium, because that is the light path that lets FFmpeg hear the page. It stays off until those programs are installed and `STATION_VISUAL=page` is set. This machine is a `t3.micro`, so that path is not the default.
+
+The unit is installed stopped:
 
 ```bash
 sudo systemctl start rr-youtube-station
 sudo systemctl stop rr-youtube-station
 ```
 
-The ingest URL and stream key belong in `/etc/rootrecord/youtube.env` on the machine. That file is not in this repository. Without `YOUTUBE_KEY`, the process exits and does not restart.
+Secrets stay in `/etc/rootrecord/youtube/` (`client_secret.json`, `token.json`). They are not in this repository. Placeholders are in `config/youtube.env.example`.
 
-`STATION_MODE=slate` sends a generated picture and tone. `STATION_MODE=program` mixes local files under `/var/lib/rootrecord/station/{music,chimes,reports,ids}`. Music stays under a report. A Hawaii :00 or :30 chime holds the report. Video is capped at 1000k, audio at 128k.
+```bash
+python3 -m youtube.auth
+python3 -m youtube.status
+```
+
+The API finds one reusable stream, opens one broadcast, and binds them. FFmpeg restarts reuse that broadcast. A missing token stops the station instead of retrying.
+
+`STATION_MODE=slate` sends a generated picture and tone. `STATION_MODE=program` mixes local files under `/var/lib/rootrecord/station/{music,chimes,reports,ids}`. Video is capped at 1000k, audio at 128k.

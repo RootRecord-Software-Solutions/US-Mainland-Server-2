@@ -1,0 +1,12 @@
+stream_title: RootRecord Station
+title_template: "RootRecord Live — {date}"
+description_template: |
+  RootRecord live broadcast.
+  rootrecord.cloud
+privacy_status: public
+made_for_kids: false
+enable_dvr: true
+record_from_start: true
+resolution: 720p
+frame_rate: 30fps
+page_url: https://www.rootrecord.cloud/live?broadcast=1

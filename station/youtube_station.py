@@ -9,6 +9,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -44,12 +45,16 @@ class Station:
         self.url = os.environ.get("YOUTUBE_URL", "rtmps://a.rtmps.youtube.com:443/live2").rstrip("/")
         self.key = os.environ.get("YOUTUBE_KEY", "").strip()
         self.sink = os.environ.get("STATION_SINK", "rtmps").strip() or "rtmps"
+        self.visual = os.environ.get("STATION_VISUAL", "generated").strip() or "generated"
         self.max_seconds = env_int("STATION_MAX_SECONDS")
         self.state = self.root / "state"
         self.slate = self.state / "slate.txt"
         self.progress = self.state / "ffmpeg-progress.txt"
         self.proc = None
         self.program = None
+        self.session = None
+        self.capture = None
+        self.live_started = False
         self.started = time.monotonic()
         self.connected = False
 
@@ -60,6 +65,8 @@ class Station:
     def _destination(self):
         if self.sink == "file":
             return str(self.state / "preview.mkv")
+        if self.session is not None:
+            return self.session.destination()
         if not self.key:
             log("STATION STOP", reason="missing_youtube_key")
             raise SystemExit(2)
@@ -80,17 +87,20 @@ class Station:
         )
 
     def _command(self, dest):
-        video = [
-            "-f", "lavfi", "-i", "color=c=0x0e1a14:s=1280x720:r=15",
-        ]
-        if self.mode == "program":
-            audio = ["-f", "s16le", "-ar", "48000", "-ac", "2", "-i", "pipe:0"]
+        if self.visual == "page" and self.capture is not None:
+            sources = self.capture.ffmpeg_inputs()
+            filters = []
         else:
-            audio = ["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000"]
+            sources = ["-f", "lavfi", "-i", "color=c=0x0e1a14:s=1280x720:r=15"]
+            if self.mode == "program":
+                sources += ["-f", "s16le", "-ar", "48000", "-ac", "2", "-i", "pipe:0"]
+            else:
+                sources += ["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000"]
+            filters = ["-vf", self._filters()]
         cmd = [
             "ffmpeg", "-hide_banner", "-loglevel", "warning",
-            *video, *audio,
-            "-vf", self._filters(),
+            *sources,
+            *filters,
             "-c:v", "libx264", "-preset", "veryfast", "-tune", "stillimage",
             "-b:v", VIDEO_BITRATE, "-maxrate", VIDEO_MAXRATE, "-bufsize", "1600k",
             "-pix_fmt", "yuv420p", "-g", "30",
@@ -145,11 +155,15 @@ class Station:
         log("PROGRAM", value=title)
         self.progress.write_text("", encoding="utf-8")
         cmd = self._command(dest)
-        log("FFMPEG START", mode=self.mode, sink=self.sink, video=VIDEO_MAXRATE, audio=AUDIO_BITRATE)
-        stdin = subprocess.PIPE if self.mode == "program" else subprocess.DEVNULL
+        log("FFMPEG START", mode=self.mode, sink=self.sink, visual=self.visual, video=VIDEO_MAXRATE, audio=AUDIO_BITRATE)
+        pipe_program = self.mode == "program" and self.visual != "page"
+        stdin = subprocess.PIPE if pipe_program else subprocess.DEVNULL
         self.proc = subprocess.Popen(cmd, stdin=stdin, stderr=subprocess.PIPE)
         self.born = time.monotonic()
         self.connected = False
+        if self.session is not None and not self.live_started:
+            self.live_started = True
+            threading.Thread(target=self._go_live, daemon=True).start()
         next_log = time.monotonic() + 5
         try:
             while not self.stopping:
@@ -158,7 +172,7 @@ class Station:
                     break
                 if self.proc.poll() is not None:
                     break
-                if self.mode == "program":
+                if pipe_program:
                     frame, title = self.program.read_frame()
                     if title:
                         self._write_slate(title)
@@ -168,10 +182,10 @@ class Station:
                         break
                 if time.monotonic() >= next_log:
                     self._watch_progress()
-                    if self.mode == "program":
+                    if pipe_program:
                         log("PROGRAM", value=self.program.title)
                     next_log = time.monotonic() + 5
-                if self.mode != "program":
+                if not pipe_program:
                     self._write_slate("Station test")
                     time.sleep(0.2)
         finally:
@@ -192,16 +206,65 @@ class Station:
             self.stopping = True
         return code
 
+    def _go_live(self):
+        from youtube.errors import AuthRequired, BroadcastError
+        try:
+            self.session.go_live()
+        except AuthRequired:
+            log("BROADCAST", detail="authentication unavailable")
+        except BroadcastError as exc:
+            log("BROADCAST", detail=str(exc)[:180])
+
+    def _prepare(self):
+        token = Path("/etc/rootrecord/youtube/token.json")
+        enabled = os.environ.get("YOUTUBE_API", "") == "1" or token.is_file()
+        if not enabled:
+            return
+        root = Path(__file__).resolve().parents[1]
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from youtube.broadcast import LiveSession
+        from youtube.errors import AuthRequired, BroadcastError
+        self.session = LiveSession(log)
+        try:
+            self.session.prepare()
+        except AuthRequired:
+            log("STATION STOP", reason="youtube_auth")
+            print("YouTube authentication unavailable.", flush=True)
+            print("Operator authorization required.", flush=True)
+            raise SystemExit(2)
+        except BroadcastError as exc:
+            log("STATION STOP", reason="broadcast", detail=str(exc)[:180])
+            raise SystemExit(1)
+
+    def _open_page(self):
+        if self.visual != "page":
+            return
+        root = Path(__file__).resolve().parents[1]
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from page_capture import PageCapture
+        from youtube.config import load_settings
+        self.capture = PageCapture(load_settings()["page_url"])
+        try:
+            self.capture.start()
+        except RuntimeError as exc:
+            log("STATION STOP", reason="page_capture", detail=str(exc)[:180])
+            raise SystemExit(1)
+
     def run(self):
         signal.signal(signal.SIGTERM, self.stop)
         signal.signal(signal.SIGINT, self.stop)
         self.state.mkdir(parents=True, exist_ok=True)
         if self.mode == "program":
             self.program = Program(self.root)
-        log("STATION START", mode=self.mode, sink=self.sink)
+        log("STATION START", mode=self.mode, sink=self.sink, visual=self.visual)
+        self._prepare()
+        self._open_page()
         try:
             dest = self._destination()
         except SystemExit:
+            self._shutdown()
             raise
         backoff = 2
         while not self.stopping:
@@ -215,8 +278,17 @@ class Station:
             self.connected = False
         if self.program is not None:
             self.program.close()
+        self._shutdown()
         log("STATION STOP")
         return 0
+
+    def _shutdown(self):
+        if self.session is not None:
+            self.session.finish()
+            self.session = None
+        if self.capture is not None:
+            self.capture.stop()
+            self.capture = None
 
 
 if __name__ == "__main__":

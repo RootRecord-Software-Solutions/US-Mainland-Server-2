@@ -6,3 +6,5 @@
 __pycache__/
 *.pyc
 station/state/
+client_secret.json
+token.json
