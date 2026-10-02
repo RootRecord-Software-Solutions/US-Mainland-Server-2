@@ -6,6 +6,7 @@ The stream key is read from the environment, never from this repository.
 """
 
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -25,7 +26,9 @@ AUDIO_BITRATE = "128k"
 
 
 def log(event, **fields):
-    extra = " ".join(f"{key}={value}" for key, value in fields.items())
+    def clean(value):
+        return re.sub(r"rtmps?://\S+", "rtmps://[redacted]", str(value))
+    extra = " ".join(f"{key}={clean(value)}" for key, value in fields.items())
     line = event if not extra else f"{event} {extra}"
     print(line, flush=True)
 

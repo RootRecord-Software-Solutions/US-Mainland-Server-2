@@ -11,7 +11,7 @@ WorkingDirectory=/home/ubuntu/US-Mainland-Server-2
 Environment=TZ=Pacific/Honolulu
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=/etc/rootrecord/youtube.env
-ExecStart=/usr/bin/python3 /home/ubuntu/US-Mainland-Server-2/station/youtube_station.py
+ExecStart=/home/ubuntu/youtube-venv/bin/python -u /home/ubuntu/US-Mainland-Server-2/station/youtube_station.py
 Restart=on-failure
 RestartSec=5
 RestartPreventExitStatus=2

@@ -43,12 +43,13 @@ class LiveSession:
         return self.ingest_address, self.stream_name
 
     def destination(self):
-        address = self.ingest_address.rstrip("/")
-        if address.startswith("rtmp://"):
-            address = "rtmps://" + address[len("rtmp://"):]
-        return f"{address}/{self.stream_name}"
+        from urllib.parse import urlparse
+        path = urlparse(self.ingest_address).path or "/live2"
+        if not path.endswith("/"):
+            path += "/"
+        return f"rtmps://a.rtmps.youtube.com:443{path}{self.stream_name}"
 
-    def go_live(self, timeout=90):
+    def go_live(self, timeout=150):
         deadline = time.monotonic() + timeout
         delay = 2
         while time.monotonic() < deadline:
