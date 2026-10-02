@@ -8,3 +8,5 @@ __pycache__/
 station/state/
 client_secret.json
 token.json
+youtube.env
+*.pem
