@@ -67,7 +67,10 @@ class LiveSession:
                     return
                 if life == "ready":
                     self._transition("testing")
-                self._transition("live")
+                try:
+                    self._transition("live")
+                except BroadcastError:
+                    continue
                 self.live = True
                 self.log("BROADCAST LIVE", broadcast=self.broadcast_id)
                 return
@@ -79,12 +82,18 @@ class LiveSession:
         if not self.youtube or not self.broadcast_id:
             return
         try:
-            if self.live:
-                self._transition("complete")
+            info = api.get_broadcast(self.youtube, self.broadcast_id)
+            items = info.get("items") or []
+            life = ((items[0].get("status") or {}).get("lifeCycleStatus") if items else "")
+            if life in ("live", "testing") or self.live:
+                if life != "complete":
+                    self._transition("complete")
                 self.log("BROADCAST END", broadcast=self.broadcast_id)
-            else:
+            elif life in ("ready", "created", ""):
                 api.delete_broadcast(self.youtube, self.broadcast_id)
                 self.log("BROADCAST END", broadcast=self.broadcast_id, removed="yes")
+            else:
+                self.log("BROADCAST END", broadcast=self.broadcast_id, state=life or "unknown")
         except (AuthRequired, BroadcastError) as exc:
             self.log("BROADCAST END", detail=str(exc)[:180])
         self.live = False
