@@ -1,0 +1,22 @@
+[Unit]
+Description=RootRecord YouTube station
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/US-Mainland-Server-2
+Environment=TZ=Pacific/Honolulu
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/etc/rootrecord/youtube.env
+ExecStart=/usr/bin/python3 /home/ubuntu/US-Mainland-Server-2/station/youtube_station.py
+Restart=on-failure
+RestartSec=5
+RestartPreventExitStatus=2
+KillMode=mixed
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

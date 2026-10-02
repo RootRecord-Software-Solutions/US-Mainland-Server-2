@@ -1,0 +1,8 @@
+*.wav
+*.ogg
+*.mp3
+*.flac
+*.m4a
+__pycache__/
+*.pyc
+station/state/

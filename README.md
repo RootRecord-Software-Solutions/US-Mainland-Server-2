@@ -22,4 +22,17 @@ sudo systemctl enable --now aws-git-pull.timer
 
 The desk pushes. The station only pulls over HTTPS.
 
-This station does not pull files from the other mainland server.
+This station does not pull files from the other mainland server. Generated WAV, OGG, and MP3 stay in `/var/lib/rootrecord/station/` and are not committed.
+
+## YouTube
+
+`station/youtube_station.py` decides what is on. FFmpeg draws the slate, encodes H.264/AAC, and sends RTMPS. The unit is installed stopped:
+
+```bash
+sudo systemctl start rr-youtube-station
+sudo systemctl stop rr-youtube-station
+```
+
+The ingest URL and stream key belong in `/etc/rootrecord/youtube.env` on the machine. That file is not in this repository. Without `YOUTUBE_KEY`, the process exits and does not restart.
+
+`STATION_MODE=slate` sends a generated picture and tone. `STATION_MODE=program` mixes local files under `/var/lib/rootrecord/station/{music,chimes,reports,ids}`. Music stays under a report. A Hawaii :00 or :30 chime holds the report. Video is capped at 1000k, audio at 128k.
