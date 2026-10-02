@@ -21,3 +21,5 @@ sudo systemctl enable --now aws-git-pull.timer
 ```
 
 The desk pushes. The station only pulls over HTTPS.
+
+This station does not pull files from the other mainland server.
