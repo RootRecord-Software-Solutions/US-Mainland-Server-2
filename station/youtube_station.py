@@ -106,7 +106,7 @@ class Station:
             *filters,
             "-c:v", "libx264", "-preset", "veryfast", "-tune", "stillimage",
             "-b:v", VIDEO_BITRATE, "-maxrate", VIDEO_MAXRATE, "-bufsize", "1600k",
-            "-pix_fmt", "yuv420p", "-g", "30",
+            "-pix_fmt", "yuv420p", "-r", "15", "-g", "30",
             "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-ar", "48000",
             "-progress", str(self.progress), "-nostats",
         ]
@@ -205,7 +205,7 @@ class Station:
             if text:
                 log("FFMPEG", detail=text[-300:].replace("\n", " "))
         code = self.proc.returncode
-        if code == 0 and self.max_seconds:
+        if self.max_seconds and (time.monotonic() - self.started) >= self.max_seconds:
             self.stopping = True
         return code
 

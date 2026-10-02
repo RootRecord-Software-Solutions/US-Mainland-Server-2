@@ -22,9 +22,12 @@ def _call(fn):
             reason = "request failed"
         if status in (401, 403) and "insufficientPermissions" in reason:
             raise AuthRequired("insufficientPermissions") from None
-        if status in (401, 403):
+        if status == 401:
             raise AuthRequired(f"YouTube refused the request ({status}).") from None
-        raise BroadcastError(f"YouTube API error ({status}).") from None
+        detail = f"YouTube API error ({status})"
+        if reason:
+            detail = f"{detail} {reason}"
+        raise BroadcastError(detail) from None
 
 
 def json_reason(exc):

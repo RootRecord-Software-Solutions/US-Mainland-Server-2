@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from youtube import api
 from youtube.auth import channel_summary, load_credentials, public_status
 from youtube.config import CONFIG_DIR, HAWAII, load_settings, render_template
+from youtube.errors import AuthRequired, BroadcastError
 
 
 class LiveSession:
