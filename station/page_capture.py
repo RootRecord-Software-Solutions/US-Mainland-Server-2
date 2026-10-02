@@ -43,8 +43,9 @@ class PageCapture:
         time.sleep(0.4)
         env = os.environ.copy()
         env["DISPLAY"] = self.display
-        profile = os.path.expanduser("~/chromium-profile")
+        profile = "/tmp/rr-chromium-profile"
         os.makedirs(profile, exist_ok=True)
+        log = open("/tmp/rr-chromium.log", "ab")
         self.procs.append(subprocess.Popen(
             [
                 self._browser(),
@@ -66,13 +67,15 @@ class PageCapture:
                 f"--window-size={width},{height}",
                 "--window-position=0,0",
                 "--kiosk",
-                "--app=" + self.url,
+                self.url,
             ],
             env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=log,
+            stderr=log,
         ))
-        time.sleep(18)
+        time.sleep(20)
+        if self.procs[-1].poll() is not None:
+            raise RuntimeError("capture browser exited before the page painted")
 
     def ffmpeg_inputs(self):
         return [
