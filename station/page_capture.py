@@ -43,7 +43,7 @@ class PageCapture:
         time.sleep(0.4)
         env = os.environ.copy()
         env["DISPLAY"] = self.display
-        profile = "/var/lib/rootrecord/chromium"
+        profile = os.path.expanduser("~/chromium-profile")
         os.makedirs(profile, exist_ok=True)
         self.procs.append(subprocess.Popen(
             [
