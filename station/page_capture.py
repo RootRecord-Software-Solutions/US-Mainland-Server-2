@@ -43,25 +43,33 @@ class PageCapture:
         time.sleep(0.4)
         env = os.environ.copy()
         env["DISPLAY"] = self.display
+        profile = "/var/lib/rootrecord/chromium"
+        os.makedirs(profile, exist_ok=True)
         self.procs.append(subprocess.Popen(
             [
                 self._browser(),
                 "--no-sandbox",
+                "--no-first-run",
+                "--disable-fre",
+                "--no-default-browser-check",
+                "--disable-infobars",
+                "--disable-session-crashed-bubble",
                 "--disable-dev-shm-usage",
                 "--mute-audio",
                 "--autoplay-policy=no-user-gesture-required",
                 "--disable-gpu",
                 "--use-gl=swiftshader",
+                "--user-data-dir", profile,
                 f"--window-size={width},{height}",
                 "--window-position=0,0",
                 "--kiosk",
-                self.url,
+                "--app=" + self.url,
             ],
             env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         ))
-        time.sleep(8)
+        time.sleep(12)
 
     def ffmpeg_inputs(self):
         return [
