@@ -57,7 +57,16 @@ class LiveSession:
             listed = api.get_stream(self.youtube, self.stream_id)
             items = listed.get("items") or []
             if items and api.stream_is_active(items[0]):
-                self._transition("testing")
+                info = api.get_broadcast(self.youtube, self.broadcast_id)
+                broadcasts = info.get("items") or []
+                life = ((broadcasts[0].get("status") or {}).get("lifeCycleStatus") if broadcasts else "")
+                self.log("BROADCAST STATE", value=life or "unknown")
+                if life == "live":
+                    self.live = True
+                    self.log("BROADCAST LIVE", broadcast=self.broadcast_id)
+                    return
+                if life == "ready":
+                    self._transition("testing")
                 self._transition("live")
                 self.live = True
                 self.log("BROADCAST LIVE", broadcast=self.broadcast_id)

@@ -94,11 +94,11 @@ class Station:
             sources = self.capture.ffmpeg_inputs()
             filters = []
         else:
-            sources = ["-f", "lavfi", "-i", "color=c=0x0e1a14:s=1280x720:r=15"]
+            sources = ["-re", "-f", "lavfi", "-i", "color=c=0x0e1a14:s=1280x720:r=15"]
             if self.mode == "program":
                 sources += ["-f", "s16le", "-ar", "48000", "-ac", "2", "-i", "pipe:0"]
             else:
-                sources += ["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000"]
+                sources += ["-re", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000"]
             filters = ["-vf", self._filters()]
         cmd = [
             "ffmpeg", "-hide_banner", "-loglevel", "warning",
