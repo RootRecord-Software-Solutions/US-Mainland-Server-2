@@ -52,27 +52,27 @@ class PageCapture:
                 "--no-first-run",
                 "--disable-fre",
                 "--no-default-browser-check",
-                "--disable-infobars",
-                "--disable-session-crashed-bubble",
+                "--ozone-platform=x11",
+                "--disable-gpu",
+                "--enable-unsafe-swiftshader",
+                "--ignore-gpu-blocklist",
+                "--enable-webgl",
+                "--use-gl=angle",
+                "--use-angle=swiftshader",
                 "--disable-dev-shm-usage",
                 "--mute-audio",
                 "--autoplay-policy=no-user-gesture-required",
-                "--ignore-gpu-blocklist",
-                "--enable-webgl",
-                "--enable-unsafe-swiftshader",
-                "--use-gl=angle",
-                "--use-angle=swiftshader",
                 "--user-data-dir", profile,
                 f"--window-size={width},{height}",
                 "--window-position=0,0",
                 "--kiosk",
-                "--app=" + self.url,
+                self.url,
             ],
             env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         ))
-        time.sleep(12)
+        time.sleep(18)
 
     def ffmpeg_inputs(self):
         return [
